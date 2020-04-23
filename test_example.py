@@ -3,8 +3,10 @@ from .pages.new_page import NewPage
 from .pages.locators import MainPageLocators,MbkpiLocators,TaskLocators, ReportLocators, CmsLocators
 import time
 from selenium.common.exceptions import NoSuchElementException
-import os
-import os.path
+import os,os.path
+import json
+import requests
+from datetime import datetime
 
 
 # def test_all_content_well(browser):
@@ -72,3 +74,52 @@ def test_mb_kpi_download(browser):
     assert report_size > 0, '!MB_KPI file is empty!'
     if report_size > 0:
         os.remove(file)
+
+
+def test_create_task():
+    # Логинимся на портале через апи, получаем токен
+    response = requests.post('http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/public/auth/user/login',
+                             json={"username": "test3@test.ru", "password": "test3"},
+                             headers={"Content-Type": "application/json"})
+    assert response.status_code == 200 or response.status_code == 201, f'Status code of login is {response.status_code}'
+    login = response.json()
+    token = login['data']['token']
+
+    # Запрашиваем список задач с токеном, парсим, выводи number_tasks
+    response = requests.post('http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/?size=1000&page=0',
+                             headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200 or response.status_code == 201, f'Status code of request of number_tasks is {response.status_code}'
+
+    number_tasks_before = int(response.json()['totalElements'])
+    print(number_tasks_before)
+
+    # Создаем задачу
+    response = requests.put('http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/',
+                            headers={"Authorization": f"Bearer {token}", "content-type": "application/json"},
+                            json={"kindMnemonic": "ItSupport", "formData": {"mnemonic": "DEALER_IT_CONTACTS",
+                                                                            "title": "Общие услуги - контакты ИТ дилера",
+                                                                            "systemId": "E5A07302-3E0F-4DB0-93D1-D2A3DEC695C4",
+                                                                            "systemName": "ИТ поддержка розничной сети",
+                                                                            "automation": "Общие услуги",
+                                                                            "sortOrder": 1100, "filesNeededCount": 0,
+                                                                            "description": f"created by AUTOTEST {datetime.now()}",
+                                                                            "refItSupportMnemonic": "DEALER_IT_CONTACTS",
+                                                                            "posId": "97186",
+                                                                            "fio": f"AUTOTEST {datetime.now()}",
+                                                                            "mail": "autotest@test.ru",
+                                                                            "phone": "79109755555"},
+                                  "description": "autotesttest", "responsibleUser": None, "responsibleGroup": None,
+                                  "attachmentUuidCollection": [], "startAfterCreation": True})
+    assert response.status_code == 201 or response.status_code == 201, f'CREATING TASK IS FAILING, status code is {response.status_code}'
+    print(response.json())
+    print(response.status_code)
+    time.sleep(20)
+    # Повторно запрашиваем список задач с токеном, парсим, выводи number_tasks
+    response = requests.post('http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/?size=1000&page=0',
+                             headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200 or response.status_code == 201, f'Status code of request of number_tasks is {response.status_code}'
+
+    number_tasks_after = int(response.json()['totalElements'])
+    print(number_tasks_after)
+    # Проверяем, что задач в базе на одну больше
+    assert number_tasks_after == number_tasks_before + 1, 'TASK WASNT SAVED IN DATABASE'
