@@ -1,5 +1,6 @@
 from .pages.main_page import MainPage
 from .pages.new_page import NewPage
+from .main_config import Main_config
 from .pages.locators import MainPageLocators, MbkpiLocators, TaskLocators, ReportLocators, CmsLocators
 import time
 from selenium.common.exceptions import NoSuchElementException
@@ -24,7 +25,7 @@ def check_exists(browser, locator):  # функция для вывода оши
 
 
 def test_all_content_well(browser):
-    link = "master.c1.dlr.tele2.at-consulting.ru:30467"
+    link = f"{Main_config.url}:{Main_config.port}"
     page = MainPage(browser, link)  # инициализируем Page Object, передаем в конструктор экземпляр драйвера и url адрес
     page.open()  # открываем страницу
     page.login()  # выполняем метод страницы - переходим на страницу логина
@@ -51,7 +52,7 @@ def test_all_content_well(browser):
 
 
 def test_mb_kpi_download(browser):
-    link = "master.c1.dlr.tele2.at-consulting.ru:30467"
+    link = f"{Main_config.url}:{Main_config.port}"
     page = MainPage(browser, link)  # инициализируем Page Object, передаем в конструктор экземпляр драйвера и url адрес
     page.open()  # открываем страницу
     page.login()  # выполняем метод страницы - логинимся под дилерской учеткой
@@ -76,10 +77,10 @@ def test_mb_kpi_download(browser):
 
 
 def test_create_task():
-    user_name = "test3@test.ru"
-    password = "test3"
+    user_name = Main_config.user_name
+    password = Main_config.user_password
     # Логинимся на портале через апи, получаем токен
-    api_login = 'http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/public/auth/user/login'
+    api_login = f'http://{Main_config.url}:{Main_config.port}/gw/public/auth/user/login'
     response = requests.post(api_login,
                              json={"username": user_name, "password": password},
                              headers={"Content-Type": "application/json"})
@@ -88,7 +89,7 @@ def test_create_task():
     token = login['data']['token']
 
     # Запрашиваем список задач с токеном, парсим, выводи number_tasks
-    api_list_tasks = 'http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/?size=1000&page=0'
+    api_list_tasks = f'http://{Main_config.url}:{Main_config.port}/gw/secured/task/?size=1000&page=0'
     response = requests.post(api_list_tasks,
                              headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200 or response.status_code == 201, f'Status code of request of number_tasks is {response.status_code}'
@@ -97,7 +98,7 @@ def test_create_task():
     print(number_tasks_before)
 
     # Создаем задачу
-    api_create_task = 'http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/'
+    api_create_task = f'http://{Main_config.url}:{Main_config.port}/gw/secured/task/'
     response = requests.put(api_create_task,
                             headers={"Authorization": f"Bearer {token}", "content-type": "application/json"},
                             json={"kindMnemonic": "ItSupport", "formData": {"mnemonic": "DEALER_IT_CONTACTS",
@@ -116,7 +117,6 @@ def test_create_task():
                                   "attachmentUuidCollection": [], "startAfterCreation": True})
     assert response.status_code == 201 or response.status_code == 201, f'CREATING TASK IS FAILING, status code is {response.status_code}'
     print(response.json())
-    print(response.status_code)
     time.sleep(20)
     # Повторно запрашиваем список задач с токеном, парсим, выводи number_tasks
     response = requests.post(api_list_tasks,
@@ -131,22 +131,22 @@ def test_create_task():
 
 def test_check_admin_roots(browser):
     # Проверяем через api видимость админки для цф
-    user_name = "testcf@tst.t2"
-    password = "!q2w3e4r"
-    api_login = 'http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/public/auth/user/login'
+    admin_user_name = Main_config.admin_user_name
+    admin_user_password = Main_config.admin_user_password
+    api_login = f'http://{Main_config.url}:{Main_config.port}/gw/public/auth/user/login'
     response = requests.post(api_login,
-                             json={"username": user_name, "password": password},
+                             json={"username": admin_user_name, "password": admin_user_password},
                              headers={"Content-Type": "application/json"})
     assert response.status_code == 200 or response.status_code == 201, f'Status code of login is {response.status_code}'
     login = response.json()
     token = login['data']['token']
-    api_check_all_unclosed = 'http://master.c1.dlr.tele2.at-consulting.ru:30467/gw/secured/task/allUnclosed/visibility'
+    api_check_all_unclosed = f'http://{Main_config.url}:{Main_config.port}/gw/secured/task/allUnclosed/visibility'
     response = requests.get(api_check_all_unclosed,
                             headers={"Authorization": f"Bearer {token}"})
     visibility_cf = response.json()['visibility']
     print(visibility_cf)
     assert visibility_cf, f"visibility CF is {visibility_cf}, admin roots are not available " \
-                          f"for {user_name}, {password}"
+                          f"for {admin_user_name}, {admin_user_password}"
 
     # Проверяем метод для неадминских учеток
     logpass_list = {'test1@test.ru': 'test1',
@@ -163,24 +163,25 @@ def test_check_admin_roots(browser):
                                  headers={"Content-Type": "application/json"})
         login = response.json()
         token = login['data']['token']
-        response = requests.get(api_check_allUnClosed,
+        response = requests.get(api_check_all_unclosed,
                                 headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200 or response.status_code == 201, f'Status code of login is {response.status_code}'
         visibility_dealer_user = response.json()['visibility']
         print(k, v, visibility_dealer_user)
         assert visibility_dealer_user == False, f" for {k},{v} admin roots are available"
     # Проверяем с фронта наличие раздела "Администрирование" у цф
-    link = "master.c1.dlr.tele2.at-consulting.ru:30467"
+    link = f"{Main_config.url}:{Main_config.port}"
     page = MainPage(browser, link)  # инициализируем Page Object, передаем в конструктор экземпляр драйвера и url адрес
     page.open()  # открываем страницу
     page.login_cf()  # выполняем метод страницы - логинимся под ЦФ
     browser.implicitly_wait(30)
     assert browser.find_element(*MainPageLocators.button_administration), \
-        f'! NO ADMINISTRATION on the front for {user_name} , {password}!'
+        f'! NO ADMINISTRATION on the front for {admin_user_name} , {admin_user_password}!'
 
-def test_access_creating_new(browser):
+
+def test_access_creating_article(browser):
     # Проверяем с фронта наличие раздела "Добавить новость" у цф
-    link = "master.c1.dlr.tele2.at-consulting.ru:30467"
+    link = f"{Main_config.url}:{Main_config.port}"
     page = MainPage(browser, link)  # инициализируем Page Object, передаем в конструктор экземпляр драйвера и url адрес
     page.open()  # открываем страницу
     page.login_cf()  # выполняем метод страницы - логинимся под ЦФ
@@ -191,5 +192,5 @@ def test_access_creating_new(browser):
     assert check_exists(browser, CmsLocators.button_add_new), "!ADDING NEWS IS NOT AVAILABLE," \
                                                               " button_add_new is not founded"
     # Проверяем, что селектор добавления новости в момент проведения теста стабилен
-    assert browser.find_element(*CmsLocators.button_add_new).text == "Добавить новость",\
+    assert browser.find_element(*CmsLocators.button_add_new).text == "Добавить новость", \
         "Selector button_add_new is changed now, check the page of news or ask frontend developer "
