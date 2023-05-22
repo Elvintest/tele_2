@@ -5,7 +5,7 @@ pytest == 4.5.0
 
 # C:\Users\eyagudin\Desktop\Autotests_tele2\debug.py: 3
 # C:\Users\eyagudin\Desktop\Autotests_tele2\test_example.py: 8
-requests == 2.22.0
+requests == 2.31.0
 
 # C:\Users\eyagudin\Desktop\Autotests_tele2\conftest.py: 2,3
 # C:\Users\eyagudin\Desktop\Autotests_tele2\pages\base_page.py: 1
